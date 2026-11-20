@@ -1,171 +1,203 @@
-# ============================================================
-# CLASIFICAESTUDIOS - APP INTERACTIVA - 1A, 1B, 1C
-# ============================================================
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 
-st.set_page_config(page_title="ClasificaEstudios", layout="wide")
-st.title("📚 CLASIFICAESTUDIOS")
-st.write("Mueve las calificaciones y las faltas y mira cómo cambia el promedio, el color y la recomendación al instante.")
+st.set_page_config(page_title="Clasifica Estudios", page_icon="🎓", layout="wide")
 
-materias = ["Matematicas","Espanol","Ciencias","Historia","Ingles","Ed_Fisica","Artes","Computacion"]
-materias_cortas = ["Mat","Esp","Cie","His","Ing","E.F.","Art","Com"]
+st.title("🎓 Clasifica Estudios")
+st.caption("Todo en un solo código | 12 Salones | 200 alumnos en total | Nombres inventados")
 
-def color_calif(c):
-    return "ROJO" if c < 6 else "AMARILLO" if c < 7.5 else "VERDE"
+# =========================================================
+# 1. DATOS - 200 ALUMNOS REPARTIDOS EN 12 SALONES
+# =========================================================
+@st.cache_data
+def crear_todos_los_datos():
+    np.random.seed(123)
+    lista = []
 
-def color_alumno(prom, faltas):
-    if prom < 6 or faltas >= 11:
-        return "ROJO"
-    elif prom < 7.5 or faltas >= 6:
-        return "AMARILLO"
+    nombres = ["Ana", "Luis", "Maria", "Carlos", "Sofia", "Diego", "Valeria", "Juan", "Camila", "Miguel", "Fernanda", "Alejandro", "Lucia", "Pedro", "Daniela", "Jorge", "Paola", "Ricardo", "Andrea", "Fernando", "Gabriela", "Hugo", "Karina", "Oscar", "Elena", "Brenda", "Ivan", "Monica", "Saul", "Diana", "Rosa", "Andres"]
+    ap_paterno = ["Garcia", "Hernandez", "Martinez", "Lopez", "Gonzalez", "Perez", "Sanchez", "Ramirez", "Torres", "Flores", "Vazquez", "Reyes", "Morales", "Jimenez", "Herrera", "Cruz", "Mendoza", "Castro", "Ortiz", "Rojas", "Delgado", "Vega", "Guerrero", "Medina", "Rios", "Navarro", "Campos", "Luna", "Aguilar", "Salazar", "Pineda", "Cabrera"]
+    ap_materno = ["Gomez", "Diaz", "Ruiz", "Alvarez", "Romero", "Juarez", "Castillo", "Silva", "Mendez", "Chavez", "Ortega", "Leon", "Vargas", "Ramos", "Gutierrez", "Dominguez", "Serrano", "Cortes", "Peña", "Lara", "Fuentes", "Pacheco", "Acosta", "Blanco", "Cabrera", "Zamora", "Figueroa", "Padilla", "Mejia", "Bautista", "Rosales", "Nieto"]
+
+    # Salones con su semestre y cuántos alumnos lleva cada uno para sumar 200
+    # Primero = 1er Semestre, Tercero = 3er Semestre, Quinto = 5to Semestre
+    salones_con_cantidad = [
+        ("Primero", "A", "1er Semestre", 17),
+        ("Primero", "B", "1er Semestre", 17),
+        ("Primero", "C", "1er Semestre", 17),
+        ("Primero", "D", "1er Semestre", 17),
+        ("Tercero", "A", "3er Semestre", 17),
+        ("Tercero", "B", "3er Semestre", 17),
+        ("Tercero", "C", "3er Semestre", 16),
+        ("Tercero", "D", "3er Semestre", 16),
+        ("Quinto", "A", "5to Semestre", 17),
+        ("Quinto", "B", "5to Semestre", 17),
+        ("Quinto", "C", "5to Semestre", 16),
+        ("Quinto", "D", "5to Semestre", 16),
+    ]
+
+    for idx_salon, (grado, grupo, semestre, cantidad) in enumerate(salones_con_cantidad):
+        for i in range(1, cantidad + 1):
+            n1 = nombres[(i - 1 + idx_salon * 3) % len(nombres)]
+            a1 = ap_paterno[(i - 1 + idx_salon * 5) % len(ap_paterno)]
+            a2 = ap_materno[(i * 2 + idx_salon * 4) % len(ap_materno)]
+            nombre_inv = f"{n1} {a1} {a2}"
+
+            calif = round(np.random.uniform(4.0, 10.0), 1)
+            asist = int(np.random.randint(50, 101))
+            tareas = int(np.random.randint(40, 101))
+            faltas = int(np.random.randint(0, 15))
+
+            lista.append({
+                "matricula": f"{grado[:3].upper()}-{grupo}-{i:02d}",
+                "nombre": nombre_inv,
+                "grado": grado,
+                "grupo": grupo,
+                "semestre": semestre,
+                "salon": f"{grado} {grupo}",
+                "calificacion": calif,
+                "asistencia": asist,
+                "tareas": tareas,
+                "faltas": faltas
+            })
+    return pd.DataFrame(lista)
+
+datos_todos = crear_todos_los_datos()
+
+def obtener_semaforo(calif, asist, faltas):
+    if calif < 6 or asist < 60 or faltas >= 10:
+        return "🔴 ROJO"
+    elif calif < 7.5 or asist < 75:
+        return "🟡 AMARILLO"
     else:
-        return "VERDE"
+        return "🟢 VERDE"
 
-def recomendacion(color, rojas, amarillas):
-    if color == "ROJO":
-        return f"¿NECESITA AYUDA? SÍ - PLAN RESCATE: Llamar a papás, asesoría 3x semana en {', '.join(rojas) if rojas else 'materias reprobadas'}"
-    elif color == "AMARILLO":
-        lista = rojas + amarillas
-        return f"¿NECESITA AYUDA? SÍ - PLAN PREVENCIÓN: Asesoría 2x semana en {', '.join(lista) if lista else 'materias bajas'}, 30 min diario"
+def obtener_recomendacion(color):
+    if color == "🔴 ROJO":
+        return "🚨 MANDAR A DIRECCIÓN | Llamar a papás, canalizar a tutoría, plan urgente, seguimiento semanal"
+    elif color == "🟡 AMARILLO":
+        return "🟡 LO MANEJA EL DOCENTE | Hablar con alumno, asesoría 30 min, compromiso de asistencia y tareas. Si en 2 semanas no mejora, pasa a ROJO"
     else:
-        return "¿NECESITA AYUDA? NO - PLAN MANTENER: Felicitarlo y ponerlo de tutor"
+        return "🟢 TODO BIEN | Felicitarlo, puede ayudar a compañeros, seguimiento normal"
 
-# --- DATOS ---
-datos_1A = [
-    ["Ana García", 4, 8.7, 8.0, 6.9, 9.2, 9.0, 7.2, 9.3, 6.6],
-    ["Luis Pérez", 14, 6.9, 6.2, 4.6, 7.7, 6.6, 5.9, 5.8, 6.8],
-    ["María López", 6, 7.0, 5.8, 6.5, 8.7, 8.6, 8.0, 7.3, 9.1],
-    ["Carlos Ruiz", 4, 7.2, 8.4, 9.8, 9.1, 7.6, 8.0, 8.2, 9.6],
-    ["Sofía Hernández", 1, 8.1, 6.8, 8.2, 7.2, 6.8, 6.7, 7.2, 8.9],
-    ["Diego Martínez", 9, 6.8, 6.9, 8.2, 6.4, 7.5, 4.9, 7.1, 8.3],
-    ["Valentina Torres", 8, 6.2, 8.1, 5.8, 5.9, 6.2, 8.9, 8.5, 8.1],
-    ["Juan Sánchez", 0, 7.9, 8.8, 8.6, 10.0, 8.5, 9.5, 8.1, 10.0],
-    ["Camila Ramírez", 2, 7.6, 10.0, 8.5, 8.7, 8.8, 7.2, 10.0, 9.0],
-    ["Andrés Flores", 12, 6.8, 4.6, 5.5, 6.6, 5.8, 4.4, 6.4, 5.5],
-    ["Paola Mendoza", 5, 6.1, 9.0, 7.6, 7.6, 8.3, 6.8, 6.0, 7.6],
-    ["Bruno Castro", 4, 7.3, 6.2, 7.4, 6.1, 9.1, 7.2, 8.5, 8.0],
-    ["Elena Vargas", 0, 6.7, 8.9, 6.9, 7.4, 10.0, 7.9, 7.8, 9.0],
-    ["Marco Díaz", 5, 6.9, 6.7, 8.1, 5.8, 6.9, 9.2, 7.9, 7.3],
-    ["Lucía Ortiz", 10, 7.7, 7.7, 7.9, 6.1, 6.6, 5.5, 7.4, 6.5],
-]
-datos_1B = [
-    ["Ángel Torres", 5, 8.6, 6.7, 8.6, 6.1, 7.2, 8.7, 6.4, 6.8],
-    ["Bianca Luna", 2, 6.9, 9.4, 8.1, 9.1, 8.0, 7.0, 7.1, 9.5],
-    ["Cristian Vega", 9, 6.8, 5.8, 6.2, 5.1, 6.3, 5.1, 6.8, 4.6],
-    ["Diana Paredes", 2, 8.4, 8.5, 8.8, 7.7, 8.9, 9.2, 9.6, 8.4],
-    ["Esteban Ríos", 3, 8.5, 6.5, 9.1, 7.6, 9.2, 8.1, 6.5, 6.5],
-    ["Fátima Gómez", 13, 4.3, 4.1, 5.6, 5.7, 5.2, 4.8, 4.2, 7.0],
-    ["Gael Medina", 11, 7.9, 6.5, 5.4, 6.2, 8.5, 8.1, 6.8, 6.0],
-    ["Hanna Cruz", 7, 8.3, 7.3, 7.1, 6.8, 6.3, 6.6, 7.1, 5.8],
-    ["Iker Salazar", 2, 7.3, 7.5, 8.1, 8.6, 7.5, 8.1, 9.2, 8.9],
-    ["Julia Ortiz", 13, 7.1, 6.5, 7.6, 7.3, 6.4, 4.7, 7.8, 6.5],
-    ["Kevin Bravo", 3, 7.7, 6.9, 7.5, 8.7, 8.1, 6.1, 7.1, 6.6],
-    ["Luna Herrera", 8, 8.9, 6.5, 6.6, 8.8, 8.3, 7.5, 6.6, 6.9],
-    ["Miguel Ángel Soto", 10, 6.4, 7.4, 7.5, 6.9, 7.2, 7.1, 8.1, 8.3],
-    ["Nadia Peña", 2, 10.0, 9.4, 8.0, 7.1, 10.0, 8.0, 7.5, 9.8],
-    ["Omar Fuentes", 4, 7.4, 8.4, 7.8, 6.6, 7.3, 8.1, 6.5, 6.2],
-    ["Paula Cabrera", 4, 9.1, 9.1, 7.6, 6.6, 7.4, 7.5, 8.7, 8.4],
-    ["Quetzal Méndez", 11, 8.2, 5.8, 5.1, 6.0, 5.8, 7.2, 7.1, 7.6],
-    ["Rosa Jiménez", 9, 7.4, 6.4, 6.9, 6.2, 7.2, 5.8, 8.4, 6.8],
-]
-datos_1C = [
-    ["Alejandro Ríos", 2, 9.2, 8.8, 7.4, 7.9, 8.3, 9.3, 7.0, 9.6],
-    ["Fernanda Cruz", 4, 8.6, 7.7, 7.1, 7.8, 7.5, 6.3, 7.4, 9.1],
-    ["Gabriel Soto", 0, 8.8, 8.8, 8.1, 6.4, 8.3, 7.3, 8.3, 7.7],
-    ["Isabella Luna", 8, 8.5, 8.6, 5.8, 6.1, 8.7, 7.2, 7.6, 7.3],
-    ["Mateo Herrera", 6, 5.8, 5.7, 5.7, 7.5, 6.0, 5.8, 6.0, 7.6],
-    ["Renata Peña", 1, 7.4, 9.9, 7.3, 8.2, 9.0, 8.9, 7.4, 7.4],
-    ["Emiliano Vega", 7, 8.5, 6.1, 7.3, 6.3, 8.3, 6.9, 6.1, 7.9],
-    ["Natalia Campos", 3, 8.6, 7.0, 7.2, 7.4, 9.2, 7.2, 8.7, 8.5],
-    ["Sebastián Núñez", 4, 8.6, 7.7, 6.9, 7.7, 8.4, 6.4, 8.6, 7.8],
-    ["Daniela Reyes", 8, 7.6, 8.8, 6.3, 6.1, 7.4, 5.7, 7.4, 6.0],
-    ["Rodrigo Aguilar", 2, 8.2, 7.1, 9.5, 10.0, 8.5, 7.8, 8.1, 9.4],
-    ["Valeria Morales", 10, 5.2, 5.3, 7.7, 7.2, 8.0, 7.9, 6.6, 5.5],
-    ["Iván Jiménez", 2, 9.7, 6.8, 10.0, 8.3, 7.5, 7.7, 10.0, 7.8],
-    ["Carmen Delgado", 8, 5.6, 6.8, 7.5, 6.9, 6.3, 7.3, 6.6, 6.5],
-    ["Óscar Bravo", 6, 7.2, 9.1, 6.3, 8.6, 8.4, 8.5, 8.9, 6.3],
-    ["Jimena Salazar", 4, 7.7, 10.0, 7.5, 7.4, 8.2, 8.6, 6.8, 7.3],
-    ["Pablo Fuentes", 5, 8.0, 8.0, 8.6, 9.2, 6.8, 7.9, 7.6, 9.2],
-    ["Andrea Ponce", 8, 8.1, 8.4, 7.6, 8.4, 8.0, 7.9, 5.7, 5.5],
-    ["Hugo Cabrera", 1, 7.9, 7.0, 8.5, 8.5, 6.9, 7.2, 9.4, 7.2],
-    ["Sara Medina", 2, 9.4, 7.3, 6.7, 9.6, 9.5, 7.1, 10.0, 9.5],
-]
+# =========================================================
+# 2. ELEGIR SALÓN Y SEMESTRE
+# =========================================================
+st.subheader("1. Elige el Salón")
 
-salones = {"1A": datos_1A, "1B": datos_1B, "1C": datos_1C}
+col_g1, col_g2 = st.columns(2)
+with col_g1:
+    grado_sel = st.selectbox("Grado / Semestre", ["Primero", "Tercero", "Quinto"])
+with col_g2:
+    grupo_sel = st.selectbox("Grupo", ["A", "B", "C", "D"])
 
-col1, col2 = st.columns(2)
-with col1:
-    salon = st.selectbox("Elige el salón:", ["1A", "1B", "1C"])
-with col2:
-    nombres = [f[0] for f in salones[salon]]
-    nombre_sel = st.selectbox("Elige el alumno:", nombres)
+salon_sel = f"{grado_sel} {grupo_sel}"
+filtrados = datos_todos[datos_todos["salon"] == salon_sel].copy()
+filtrados["semaforo"] = filtrados.apply(lambda r: obtener_semaforo(r["calificacion"], r["asistencia"], r["faltas"]), axis=1)
+filtrados["recomendacion"] = filtrados["semaforo"].apply(obtener_recomendacion)
 
-alumno = [f for f in salones[salon] if f[0] == nombre_sel][0]
-faltas_orig, notas_orig = alumno[1], alumno[2:]
+total_salon = len(filtrados)
+semestre_sel = filtrados["semestre"].iloc[0] if total_salon > 0 else ""
 
-st.markdown("---")
-st.subheader(f"✏️ Modifica a {nombre_sel} - Salón {salon}")
-st.write("Mueve las barritas. El resultado cambia al instante.")
+st.success(f"Estás viendo: **{salon_sel} - {semestre_sel}** | Tiene **{total_salon} alumnos**")
 
-faltas = st.slider("Faltas", 0, 15, int(faltas_orig))
-nuevas_notas = []
-cols = st.columns(4)
-for i, m in enumerate(materias):
-    with cols[i % 4]:
-        v = st.slider(m, 0.0, 10.0, float(notas_orig[i]), step=0.1)
-        nuevas_notas.append(v)
+c_rojo = len(filtrados[filtrados["semaforo"] == "🔴 ROJO"])
+c_ama = len(filtrados[filtrados["semaforo"] == "🟡 AMARILLO"])
+c_ver = len(filtrados[filtrados["semaforo"] == "🟢 VERDE"])
 
-prom = round(sum(nuevas_notas) / len(nuevas_notas), 1)
-color = color_alumno(prom, faltas)
-rojas = [materias[i] for i, v in enumerate(nuevas_notas) if v < 6]
-amarillas = [materias[i] for i, v in enumerate(nuevas_notas) if 6 <= v < 7.5]
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Total Salón", total_salon)
+m2.metric("🔴 En ROJO", c_rojo)
+m3.metric("🟡 En AMARILLO", c_ama)
+m4.metric("🟢 En VERDE", c_ver)
 
-st.markdown("---")
-c1, c2, c3 = st.columns(3)
-c1.metric("Promedio", prom)
-c2.metric("Faltas", faltas)
-with c3:
-    if color == "ROJO":
-        st.error(f"🔴 COLOR: {color}")
-    elif color == "AMARILLO":
-        st.warning(f"🟡 COLOR: {color}")
+# =========================================================
+# 3. ELEGIR ALUMNO
+# =========================================================
+st.subheader("2. Elige al Estudiante")
+alumno_nombre = st.selectbox("Alumno", filtrados["nombre"].tolist())
+alumno = filtrados[filtrados["nombre"] == alumno_nombre].iloc[0]
+
+# =========================================================
+# 4. PESTAÑAS - TODO INTEGRADO
+# =========================================================
+tab1, tab2, tab3 = st.tabs([
+    "📋 1. DATOS ORIGINALES - NO SE TOCAN",
+    "🎛️ 2. SIMULADOR - AQUÍ SÍ MUEVES TODO",
+    "📊 3. TODOS LOS DEL SALÓN"
+])
+
+with tab1:
+    st.warning(f"DATOS ORIGINALES INTEGRADOS de {alumno['nombre']} | Salón {salon_sel} - {alumno['semestre']} | Estos NO se pueden modificar, son tu respaldo real.")
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Matrícula", alumno["matricula"])
+    a2.metric("Calificación Original", alumno["calificacion"])
+    a3.metric("Asistencia Original", f"{alumno['asistencia']}%")
+    a4.metric("Faltas Originales", alumno["faltas"])
+    b1, b2, b3 = st.columns(3)
+    b1.metric("Salón", alumno["salon"])
+    b2.metric("Tareas Originales", f"{alumno['tareas']}%")
+    b3.metric("Semáforo Original", alumno["semaforo"])
+    st.markdown(f"### Clasificación Original: {alumno['semaforo']}")
+    st.info(alumno["recomendacion"])
+
+with tab2:
+    st.info("SIMULADOR: Aquí mueves las barritas para probar. Los datos originales de la Pestaña 1 NO cambian.")
+    s1, s2 = st.columns(2)
+    with s1:
+        calif_sim = st.slider("Calificación simulada", 0.0, 10.0, float(alumno["calificacion"]), 0.1)
+        asist_sim = st.slider("Asistencia simulada %", 0, 100, int(alumno["asistencia"]))
+    with s2:
+        tareas_sim = st.slider("Tareas simuladas %", 0, 100, int(alumno["tareas"]))
+        faltas_sim = st.slider("Faltas simuladas", 0, 30, int(alumno["faltas"]))
+
+    color_sim = obtener_semaforo(calif_sim, asist_sim, faltas_sim)
+    rec_sim = obtener_recomendacion(color_sim)
+    st.divider()
+    st.markdown(f"## Resultado Simulado: {color_sim}")
+    st.write(f"Calificación: Antes {alumno['calificacion']} -> Ahora {calif_sim} | Asistencia: Antes {alumno['asistencia']}% -> Ahora {asist_sim}% | Faltas: Antes {alumno['faltas']} -> Ahora {faltas_sim}")
+
+    if color_sim == "🔴 ROJO":
+        st.error("🚨 ALERTA PARA DIRECCIÓN")
+        st.write("1. Mandar reporte a Dirección / Tutoría")
+        st.write("2. Llamar a papás / tutor")
+        st.write("3. Plan de recuperación urgente")
+        st.write("4. Seguimiento cada semana")
+        mensaje = f"ALERTA DIRECCIÓN: Alumno {alumno['nombre']} - Salón {salon_sel} - {alumno['semestre']} - Matrícula {alumno['matricula']} en ROJO. Calif simulada: {calif_sim}, Asistencia: {asist_sim}%, Faltas: {faltas_sim}. Se solicita intervención de Dirección."
+        st.text_area("Mensaje listo para copiar y mandar a Dirección:", mensaje, height=90)
+    elif color_sim == "🟡 AMARILLO":
+        st.warning("🟡 ATENCIÓN DEL DOCENTE - NO ES PARA DIRECCIÓN TODAVÍA")
+        st.write("1. Hablar con el alumno esta semana")
+        st.write("2. Asesoría de 30 min, ver qué tema le cuesta")
+        st.write("3. Compromiso de asistencia y tareas")
+        st.write("4. Revisar en 2 semanas, si no mejora pasa a ROJO y sí se avisa a Dirección")
     else:
-        st.success(f"🟢 COLOR: {color}")
+        st.success("🟢 TODO BIEN")
+        st.write("1. Felicitarlo en clase")
+        st.write("2. Puede apoyar a compañeros que están en amarillo")
+        st.write("3. Seguimiento normal, sin reporte")
+    st.info(f"Recomendación: {rec_sim}")
 
-st.info(recomendacion(color, rojas, amarillas))
+with tab3:
+    st.subheader(f"Todos los alumnos de {salon_sel} - {semestre_sel} - Todos con su semáforo y recomendación")
+    filtro = st.selectbox("Filtrar por semáforo", ["Todos", "🔴 ROJO", "🟡 AMARILLO", "🟢 VERDE"])
+    tabla_mostrar = filtrados
+    if filtro != "Todos":
+        tabla_mostrar = filtrados[filtrados["semaforo"] == filtro]
+    st.dataframe(tabla_mostrar[["matricula", "nombre", "salon", "semestre", "calificacion", "asistencia", "tareas", "faltas", "semaforo", "recomendacion"]], use_container_width=True)
+    st.write(f"- En ROJO hay que mandar a Dirección: {c_rojo} alumnos")
+    st.write(f"- En AMARILLO los maneja el docente: {c_ama} alumnos")
+    st.write(f"- En VERDE todo bien: {c_ver} alumnos")
 
-df_alumno = pd.DataFrame({"Materia": materias, "Calificación": nuevas_notas, "Color": [color_calif(v) for v in nuevas_notas]})
-st.dataframe(df_alumno, use_container_width=True)
+st.divider()
+st.subheader("Resumen de los 12 Salones - 200 alumnos en total")
+resumen = datos_todos.copy()
+resumen["semaforo"] = resumen.apply(lambda r: obtener_semaforo(r["calificacion"], r["asistencia"], r["faltas"]), axis=1)
+tabla_resumen = resumen.groupby(["salon", "semaforo"]).size().unstack(fill_value=0)
+for col in ["🔴 ROJO", "🟡 AMARILLO", "🟢 VERDE"]:
+    if col not in tabla_resumen.columns:
+        tabla_resumen[col] = 0
+tabla_resumen["Total"] = tabla_resumen["🔴 ROJO"] + tabla_resumen["🟡 AMARILLO"] + tabla_resumen["🟢 VERDE"]
+st.dataframe(tabla_resumen, use_container_width=True)
 
-fig, ax = plt.subplots(figsize=(10, 4))
-colores = ["#e74c3c" if v < 6 else "#f1c40f" if v < 7.5 else "#2ecc71" for v in nuevas_notas]
-ax.bar(materias_cortas, nuevas_notas, color=colores, edgecolor="black")
-for i, v in enumerate(nuevas_notas):
-    ax.text(i, v + 0.3, str(v), ha="center", fontweight="bold")
-ax.axhline(6.0, color="#e74c3c", linestyle="--")
-ax.axhline(7.5, color="#2ecc71", linestyle="--")
-ax.set_ylim(0, 11)
-ax.set_ylabel("Calificación")
-ax.set_title(f"{nombre_sel} - {salon} - Prom: {prom} - {color}")
-ax.grid(axis="y", alpha=0.3)
-st.pyplot(fig)
-
-st.markdown("---")
-st.subheader(f"📊 Promedio del salón {salon} (datos originales)")
-prom_materias = [round(sum(f[2+i] for f in salones[salon]) / len(salones[salon]), 2) for i in range(8)]
-prom_salon = round(sum(prom_materias) / 8, 2)
-st.write(f"**Promedio del salón {salon}: {prom_salon} - {color_calif(prom_salon)}**")
-
-fig2, ax2 = plt.subplots(figsize=(10, 4))
-colores2 = ["#e74c3c" if v < 6 else "#f1c40f" if v < 7.5 else "#2ecc71" for v in prom_materias]
-ax2.bar(materias_cortas, prom_materias, color=colores2, edgecolor="black")
-for i, v in enumerate(prom_materias):
-    ax2.text(i, v + 0.3, str(v), ha="center", fontweight="bold")
-ax2.axhline(6.0, color="#e74c3c", linestyle="--")
-ax2.axhline(7.5, color="#2ecc71", linestyle="--")
-ax2.set_ylim(0, 11)
-ax2.set_title(f"PROMEDIO DEL SALON {salon} = {prom_salon} | {color_calif(prom_salon)}")
-ax2.grid(axis="y", alpha=0.3)
-st.pyplot(fig2)
+st.caption("Clasifica Estudios | TODO EN UN SOLO CÓDIGO | 12 Salones | 200 alumnos | 1er, 3er y 5to Semestre | Nombres inventados | Datos originales separados del simulador")
