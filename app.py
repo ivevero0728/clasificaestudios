@@ -5,7 +5,7 @@ import numpy as np
 st.set_page_config(page_title="Sistema de Alerta Temprana Escolar ", page_icon="🎓", layout="wide")
 
 st.title("🎓 Sistgema de Alerta Temprana Escolar")
-st.caption("Todo en un solo código | 12 Salones | 200 alumnos en total | Nombres inventados")
+st.caption("lo que les vamos a presentar es una aplicacion de sistemas de alerta temprana escolar como su nombre lo meniona lo que hace esta aplicacion es presentar los semestres, grupos, alumnos por cada salon,y tambien nos va a vencionar quienes son los estudiantes que estan en peligro y cuales no, esto nos lo va arepresentar con los colores (rojo, amarillo, verde) esto nos lo va a marcar por grupo ya que  en cada salon hay sierta cantida de estudiantes los cuales la mayoria son 17 o 16 tambien cuenta con 4 grupos loa cuales son A , B, C , D, esto nos permite tener un mejor control para los datos de los estudiantes  ")
 
 # =========================================================
 # 1. DATOS - 200 ALUMNOS REPARTIDOS EN 12 SALONES
