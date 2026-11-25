@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Clasifica Estudios", page_icon="🎓", layout="wide")
+st.set_page_config(page_title="Sistema de Alerta Temprana Escolar ", page_icon="🎓", layout="wide")
 
-st.title("🎓 Clasifica Estudios")
+st.title("🎓 Sistgema de Alerta Temprana Escolar")
 st.caption("Todo en un solo código | 12 Salones | 200 alumnos en total | Nombres inventados")
 
 # =========================================================
